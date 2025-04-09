@@ -148,15 +148,12 @@ img.github-private-asset {
   border: 1px solid #8888;
 }
 
-nav.toc ul {
-  list-style: none;
+nav.toc {
+  padding-bottom: 1rem;
 }
 
 nav.toc ul {
   list-style: none;
-}
-
-nav.toc ul {
   padding: 0;
 }
 

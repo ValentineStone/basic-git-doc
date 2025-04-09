@@ -49,6 +49,8 @@ type Config struct {
 	HostPort    string `yaml:"hostPort"`
 }
 
+var GlobalAppVersion = "0.0.0-unknown"
+
 var GlobalAppConfig = Config{
 	GlobalTitle: "",
 	Logo:        "/public/logo.svg",
@@ -213,13 +215,10 @@ func loadGlobalAppConfig(file string) error {
 	}
 	yaml.Unmarshal(configBytes, &GlobalAppConfig)
 
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		log.Println("Failed to read build info")
-	} else {
-		log.Println(bi)
+	buildInfo, ok := debug.ReadBuildInfo()
+	if ok {
+		GlobalAppVersion = buildInfo.Main.Version
 	}
-
 
 	return nil
 }
@@ -267,7 +266,7 @@ func RenderPage(c fiber.Ctx, markdownRaw string) error {
 	return c.Render("views/page", fiber.Map{
 		"title":           title,
 		"html":            markdownHTML,
-		"version":         "1.0.2-beta",
+		"version":         GlobalAppVersion,
 		"headings":        headings,
 		"projects":        projects,
 		"currentHref":     c.Path(),

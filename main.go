@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -325,7 +326,7 @@ func main() {
 		if exists, _ := FileExists(GlobalAppConfig.Readme); exists {
 			markdownRaw, err := FileReadString(GlobalAppConfig.Readme)
 			if err != nil {
-				return RenderPage(c, "# Index\n> " + err.Error())
+				return RenderPage(c, "# Index\n> "+err.Error())
 			} else {
 				return RenderPage(c, markdownRaw)
 			}
@@ -365,5 +366,17 @@ func main() {
 		return RenderPage(c, "# 404 Not Found\n`"+c.Path()+"`")
 	})
 
-	log.Fatal(app.Listen(GlobalAppConfig.HostPort))
+	app.Hooks().OnListen(func(listenData fiber.ListenData) error {
+		if fiber.IsChild() {
+			return nil
+		}
+		scheme := "http"
+		if listenData.TLS {
+			scheme = "https"
+		}
+		fmt.Println("Docs running on " + scheme + "://" + listenData.Host + ":" + listenData.Port)
+		return nil
+	})
+
+	log.Fatal(app.Listen(GlobalAppConfig.HostPort, fiber.ListenConfig{DisableStartupMessage: true}))
 }

@@ -1,0 +1,109 @@
+{{$currentHref := .currentHref}}
+{{$currentProject := .currentProject}}
+{{$globalAppConfig := .globalAppConfig}}
+{{$headings := .headings}}
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" type="text/css" href="/public/markdown-style.css" />
+		<link rel="stylesheet" type="text/css" href="/public/style.css" />
+		<link rel="icon" href="/__favicon">
+		<title>{{.title}}</title>
+
+	</head>
+	<body class="markdown-body">
+		<nav class="toc">
+			<a href="/" style="color:inherit">
+				<img src="/__logo" class="toc-logo">
+			</a>
+      {{if $globalAppConfig.GlobalTitle}}
+        <h1 class="global-title">{{$globalAppConfig.GlobalTitle}}</h1>
+      {{end}}
+
+      <ul>
+      {{range $project := .projects}}
+        <li>
+          <div class="toc-project-title {{if eq $currentProject $project.Name}}current-doc{{end}}">
+            {{if $project.Href}}
+              <a href="{{$project.Href}}">{{$project.Name}}</a>
+            {{else}}
+              <span>{{$project.Name}}</span>
+            {{end}}
+            {{if $project.Tag}}
+              <label class="version-tag" for="version-tags-more-{{$project.Name}}">
+                {{$project.Tag}}
+              </label>
+            {{else}}
+              <label class="version-tag">
+                dir
+              </label>
+            {{end}}
+          </div>
+
+          <input type="checkbox" id="version-tags-more-{{$project.Name}}" class="version-tags-more"/>
+          <div class="version-tags {{if eq $currentProject $project.Name}}current-project{{end}}">
+            {{range $tag := $project.Tags}}
+              <div>
+                <a href="/git/checkout/{{$project.Name}}/{{$tag}}">
+                  <code>{{$tag}}</code>
+                </a>
+              </div>
+            {{end}}
+            <div><a href="/git/pull/{{$project.Name}}"><code>⟳</code></a></div>
+          </div>
+
+          {{if eq $currentHref $project.Href}}
+          <ul class="doc-headings current-doc">
+            {{range $heading := $headings}}
+              <li>
+                <a href="{{$heading.Href}}">{{$heading.Text}}</a>
+              </li>
+            {{end}}
+          </ul>
+          {{end}}
+
+          {{if eq $currentProject $project.Name}}
+          <ul>
+          {{range $page := $project.Pages}}
+            <li class="{{if eq $currentHref $page.Href}}current-doc{{end}}">
+              <a href="{{$page.Href}}">{{$page.Text}}</a>
+            </li>
+
+            {{if eq $currentHref $page.Href}}
+            <ul class="doc-headings current-doc">
+              {{range $heading := $headings}}
+                <li>
+                  <a href="{{$heading.Href}}">{{$heading.Text}}</a>
+                </li>
+              {{end}}
+            </ul>
+            {{end}}
+
+          {{end}}
+          </ul>
+          {{end}}
+
+        </li>
+      {{end}}
+      </ul>
+
+			<div class="refresh-docs"><a href="/git/submodule/update">⟳ Refresh docs</a></div>
+			<div class="version-info">{{.version}}</div>
+		</nav>
+		<main>
+			<div id="top" style="margin:0"></div>
+			<a href="#top" class="top-button"></a>
+			<div>{{unescape .html}}</div>
+		</main>
+	</body>
+
+  
+
+  <script>
+    [...document.querySelector('.toc > ul').querySelectorAll('a')].find(v => v.href === String(location)).scrollIntoView({ behavior: "auto", block: "start" })
+  </script>
+
+</html>

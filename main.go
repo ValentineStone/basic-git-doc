@@ -45,6 +45,7 @@ type Config struct {
 	GlobalTitle string `yaml:"globalTitle"`
 	Logo        string `yaml:"logo"`
 	Favicon     string `yaml:"favicon"`
+	Readme      string `yaml:"readme"`
 	ReposDir    string `yaml:"reposDir"`
 	HostPort    string `yaml:"hostPort"`
 }
@@ -53,8 +54,9 @@ var GlobalAppVersion = "0.0.0-unknown"
 
 var GlobalAppConfig = Config{
 	GlobalTitle: "",
-	Logo:        "/public/logo.svg",
-	Favicon:     "/public/logo.svg",
+	Logo:        "public/logo.svg",
+	Favicon:     "public/logo.svg",
+	Readme:      "public/README.md",
 	ReposDir:    "repos",
 	HostPort:    "127.0.0.1:3000",
 }
@@ -103,13 +105,6 @@ func makeProjects(reposPath string) error {
 			continue
 		}
 
-		/*
-			projectHref := ""
-			readmeFile := path.Join(reposPath, projectEntry.Name(), "README.md")
-			if exists, _ := FileExists(readmeFile); exists {
-				projectHref = path.Join("/", projectEntry.Name(), "README.md")
-			}
-		*/
 		readmeFile := path.Join(reposPath, projectEntry.Name(), "README.md")
 		projectHref := path.Join("/", projectEntry.Name(), "README.md")
 
@@ -327,7 +322,16 @@ func main() {
 	})
 
 	app.Get("/", func(c fiber.Ctx) error {
-		return RenderPage(c, "# Index")
+		if exists, _ := FileExists(GlobalAppConfig.Readme); exists {
+			markdownRaw, err := FileReadString(GlobalAppConfig.Readme)
+			if err != nil {
+				return RenderPage(c, "# Index\n> " + err.Error())
+			} else {
+				return RenderPage(c, markdownRaw)
+			}
+		} else {
+			return RenderPage(c, "# Index")
+		}
 	})
 
 	app.Get("/*.md", func(c fiber.Ctx) error {

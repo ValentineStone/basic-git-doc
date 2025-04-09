@@ -103,7 +103,7 @@
   
 
   <script>
-    [...document.querySelector('.toc > ul').querySelectorAll('a')].find(v => v.href === String(location)).scrollIntoView({ behavior: "auto", block: "start" })
+    [...document.querySelector('.toc > ul').querySelectorAll('a')].find(v => v.href === String(location))?.scrollIntoView({ behavior: "auto", block: "start" })
   </script>
 
 </html>

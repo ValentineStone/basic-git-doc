@@ -403,7 +403,13 @@ func main() {
 		if listenData.TLS {
 			scheme = "https"
 		}
-		fmt.Println("Docs running on " + scheme + "://" + listenData.Host + ":" + listenData.Port)
+		host := listenData.Host
+		comment := ""
+		if host == "0.0.0.0" {
+			host = "127.0.0.1"
+			comment = "(listening on 0.0.0.0)"
+		}
+		fmt.Println("Docs running on " + scheme + "://" + host + ":" + listenData.Port + " " + comment)
 		return nil
 	})
 

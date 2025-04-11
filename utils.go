@@ -1,11 +1,17 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"flag"
 	"io"
 	"os"
 	"path"
 	"regexp"
+
+	"github.com/denisbrodbeck/machineid"
+	"github.com/google/uuid"
 )
 
 func FileExists(filePath string) (bool, error) {
@@ -100,4 +106,44 @@ func filesListInDirEntry(parentPath string, dirEntry os.DirEntry, includeRegexp 
 	}
 
 	return nil
+}
+
+func FlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+// 256 bit system id (32 bytes)
+func SystemId() ([]byte, error) {
+	systemId, err := machineid.ID()
+	if err != nil {
+		return nil, err
+	}
+	systemUUID, err := uuid.Parse(systemId)
+	if err != nil {
+		return nil, err
+	}
+	systemUUIDBytes, err := systemUUID.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	systemIdHash := sha256.New()
+	systemIdHash.Write(systemUUIDBytes)
+	systemIdHashBytes := systemIdHash.Sum(nil)
+	return systemIdHashBytes, nil
+}
+
+// base64 encoded 256 bit system id (32 bytes)
+func SystemIdString() (string, error) {
+	systemIdBytes, err := SystemId()
+	if err != nil {
+		return "", err
+	}
+	systemId := base64.StdEncoding.EncodeToString(systemIdBytes)
+	return systemId, nil
 }

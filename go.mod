@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.2 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
+	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/gofiber/fiber/v3 v3.0.0-beta.4 // indirect
@@ -14,6 +15,7 @@ require (
 	github.com/gofiber/template/html/v2 v2.1.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.0-beta.8 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

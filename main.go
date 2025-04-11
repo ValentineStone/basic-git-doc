@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"errors"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -275,8 +276,36 @@ func RedirectToProject(c fiber.Ctx, project string) error {
 	return c.Redirect().To(path.Join("/", project, "README.md"))
 }
 
+var versionFlag = flag.Bool("version", false, "print version")
+var systemIdFlag = flag.Bool("system-id", false, "print system id")
+var hostportFlag = flag.String("hostport", "127.0.0.1:3000", "if defined will be used over config.yaml hostport")
+
 func main() {
 	loadGlobalAppConfig("config.yaml")
+	flag.Parse()
+	if *versionFlag {
+		fmt.Println(GlobalAppVersion)
+		return
+	}
+	if *systemIdFlag {
+		systemId, err := SystemIdString()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println(systemId)
+		}
+		return
+	}
+	if FlagPassed("hostport") {
+		GlobalAppConfig.HostPort = *hostportFlag
+	}
+
+	checkOk, err := LicenseCheck()
+	if !checkOk {
+		fmt.Println("Check failed!", err)
+		return
+	}
+
 	makeProjects(GlobalAppConfig.ReposDir)
 
 	engine := fiber_html.NewFileSystem(http.FS(viewsFS), ".html")

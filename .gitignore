@@ -26,3 +26,6 @@ go.work.sum
 
 local
 config.yaml
+build
+license.key
+license.go

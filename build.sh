@@ -19,9 +19,9 @@ ARCHITECTURES=(
 
 for ARCHITECTURE in "${ARCHITECTURES[@]}"
 do
-  read GOOS GOARCH BINEXT <<< "$ARCHITECTURE"
-  echo "Building ${BINNAME}_${BINVER}_${GOOS}_$GOARCH$BINEXT"
-  go build -o "./build/${BINNAME}_${BINVER}_${GOOS}_$GOARCH$BINEXT" .
+  read BINOS BINARCH BINEXT <<< "$ARCHITECTURE"
+  echo "Building ${BINNAME}_${BINVER}_${BINOS}_$BINARCH$BINEXT"
+  GOOS=$BINOS GOARCH=$BINARCH go build -o "./build/${BINNAME}_${BINVER}_${BINOS}_$BINARCH$BINEXT" .
 done
 
 echo Done

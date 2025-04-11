@@ -300,12 +300,6 @@ func main() {
 		GlobalAppConfig.HostPort = *hostportFlag
 	}
 
-	checkOk, err := LicenseCheck()
-	if !checkOk {
-		fmt.Println("Check failed!", err)
-		return
-	}
-
 	makeProjects(GlobalAppConfig.ReposDir)
 
 	engine := fiber_html.NewFileSystem(http.FS(viewsFS), ".html")
@@ -316,6 +310,11 @@ func main() {
 	)
 
 	app := fiber.New(fiber.Config{Views: engine})
+
+	app.Get("/error", func(c fiber.Ctx) error {
+		message := c.Query("message", "unknown error")
+		return RenderPage(c, "# Error\n> "+message)
+	})
 
 	app.Get("/git/checkout/:project/:commit", func(c fiber.Ctx) error {
 		project := c.Params("project")
@@ -365,6 +364,10 @@ func main() {
 	})
 
 	app.Get("/*.md", func(c fiber.Ctx) error {
+		ok, err := LicenseCheck()
+		if !ok {
+			return c.Redirect().To("/error?message=" + err.Error())
+		}
 		return RenderPage(c, "")
 	})
 
@@ -379,6 +382,10 @@ func main() {
 	}))
 
 	app.Get("/:project/README.md", func(c fiber.Ctx) error {
+		ok, err := LicenseCheck()
+		if !ok {
+			return c.Redirect().To("/error?message=" + err.Error())
+		}
 		project := c.Params("project")
 		return RenderPage(c, "# "+project+"\n> README.md does not exist for this project!")
 	})

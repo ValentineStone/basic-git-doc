@@ -175,6 +175,12 @@ nav.toc > ul ul.doc-headings li {
   padding-left: 3rem;
 }
 
+nav.toc > .logo-link {
+  display: block;
+  color: inherit;
+  padding: 1rem;
+}
+
 .version-info {
   font-size: 0.7rem;
   color: #8888;

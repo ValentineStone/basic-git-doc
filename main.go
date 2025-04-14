@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -225,7 +226,7 @@ func RenderPage(c fiber.Ctx, markdownRaw string) error {
 	var markdownHTML string
 	var title string = "Untitled"
 	if markdownRaw == "" {
-		filePath := path.Join(GlobalAppConfig.ReposDir, c.Path())
+		filePath := path.Join(GlobalAppConfig.ReposDir, FiberPath(c))
 		fileName := path.Base(filePath)
 		if exists, _ := FileExists(filePath); !exists {
 			return c.Next()
@@ -266,8 +267,8 @@ func RenderPage(c fiber.Ctx, markdownRaw string) error {
 		"version":         GlobalAppVersion,
 		"headings":        headings,
 		"projects":        projects,
-		"currentHref":     c.Path(),
-		"currentProject":  strings.Split(c.Path()[1:], "/")[0],
+		"currentHref":     FiberPath(c),
+		"currentProject":  strings.Split(FiberPath(c)[1:], "/")[0],
 		"globalAppConfig": GlobalAppConfig,
 	})
 }
@@ -308,6 +309,12 @@ func main() {
 			return template.HTML(s)
 		},
 	)
+	engine.AddFunc(
+		"json", func(v any) template.JS {
+			a, _ := json.MarshalIndent(v, "", "  ")
+			return template.JS(a)
+		},
+	)
 
 	app := fiber.New(fiber.Config{Views: engine})
 
@@ -317,8 +324,8 @@ func main() {
 	})
 
 	app.Get("/git/checkout/:project/:commit", func(c fiber.Ctx) error {
-		project := c.Params("project")
-		commit := c.Params("commit")
+		project := FiberParam(c, "project")
+		commit := FiberParam(c, "commit")
 		var cmd *exec.Cmd
 		if commit == "latest" {
 			latestCommit, err := GitLatestCommit(project)
@@ -342,7 +349,7 @@ func main() {
 	})
 
 	app.Get("/git/pull/:project", func(c fiber.Ctx) error {
-		project := c.Params("project")
+		project := FiberParam(c, "project")
 		cmd := exec.Command("git", "pull")
 		cmd.Dir = path.Join(GlobalAppConfig.ReposDir, project)
 		cmd.CombinedOutput()
@@ -386,7 +393,7 @@ func main() {
 		if !ok {
 			return c.Redirect().To("/error?message=" + err.Error())
 		}
-		project := c.Params("project")
+		project := FiberParam(c, "project")
 		return RenderPage(c, "# "+project+"\n> README.md does not exist for this project!")
 	})
 
@@ -399,7 +406,7 @@ func main() {
 	})
 
 	app.Use(func(c fiber.Ctx) error {
-		return RenderPage(c, "# 404 Not Found\n`"+c.Path()+"`")
+		return RenderPage(c, "# 404 Not Found\n`"+FiberPath(c)+"`")
 	})
 
 	app.Hooks().OnListen(func(listenData fiber.ListenData) error {

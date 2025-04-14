@@ -6,11 +6,13 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
 
 	"github.com/denisbrodbeck/machineid"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -74,7 +76,7 @@ func FilesList(dirPath string, include string, ignore string) ([]string, error) 
 	}
 
 	for _, subdirEntry := range entries {
-		err := filesListInDirEntry(dirPath, subdirEntry, includeRegexp, ignoreRegexp, &files)
+		err := filesListInDirEntry(dirPath, subdirEntry, includeRegexp, ignoreRegexp, &files, 0)
 		if err != nil {
 			return files, err
 		}
@@ -83,7 +85,7 @@ func FilesList(dirPath string, include string, ignore string) ([]string, error) 
 	return files, nil
 }
 
-func filesListInDirEntry(parentPath string, dirEntry os.DirEntry, includeRegexp *regexp.Regexp, ignoreRegexp *regexp.Regexp, acc *[]string) error {
+func filesListInDirEntry(parentPath string, dirEntry os.DirEntry, includeRegexp *regexp.Regexp, ignoreRegexp *regexp.Regexp, acc *[]string, level int) error {
 	fullPath := path.Join(parentPath, dirEntry.Name())
 
 	if ignoreRegexp != nil && ignoreRegexp.MatchString(fullPath) {
@@ -101,11 +103,31 @@ func filesListInDirEntry(parentPath string, dirEntry os.DirEntry, includeRegexp 
 			return err
 		}
 		for _, subdirEntry := range entries {
-			filesListInDirEntry(fullPath, subdirEntry, includeRegexp, ignoreRegexp, acc)
+			filesListInDirEntry(fullPath, subdirEntry, includeRegexp, ignoreRegexp, acc, level+1)
 		}
 	}
 
 	return nil
+}
+
+func FiberParam(c fiber.Ctx, key string, defaultValue ...string) string {
+	paramRaw := c.Params(key, defaultValue...)
+	param, err := url.PathUnescape(paramRaw)
+	if err != nil {
+		return paramRaw
+	} else {
+		return param
+	}
+}
+
+func FiberPath(c fiber.Ctx) string {
+	pathRaw := c.Path()
+	pathDec, err := url.PathUnescape(pathRaw)
+	if err != nil {
+		return pathRaw
+	} else {
+		return pathDec
+	}
 }
 
 func FlagPassed(name string) bool {

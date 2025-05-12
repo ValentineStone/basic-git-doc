@@ -30,3 +30,6 @@ config.yaml
 build
 license.key
 license.go
+
+repos
+public

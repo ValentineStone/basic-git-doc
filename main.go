@@ -28,7 +28,7 @@ import (
 //go:embed views/*
 var viewsFS embed.FS
 
-//go:embed public/*
+//go:embed public-embeded/*
 var publicFS embed.FS
 
 type Link struct {
@@ -380,7 +380,7 @@ func main() {
 
 	app.Get("/public*", static.New("./public"))
 
-	app.Get("/public*", static.New("./public", static.Config{
+	app.Get("/public*", static.New("./public-embeded", static.Config{
 		FS: publicFS,
 	}))
 

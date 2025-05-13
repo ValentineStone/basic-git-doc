@@ -12,7 +12,7 @@ import (
 	"regexp"
 
 	"github.com/denisbrodbeck/machineid"
-	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
@@ -110,7 +110,7 @@ func filesListInDirEntry(parentPath string, dirEntry os.DirEntry, includeRegexp 
 	return nil
 }
 
-func FiberParam(c fiber.Ctx, key string, defaultValue ...string) string {
+func FiberParam(c *fiber.Ctx, key string, defaultValue ...string) string {
 	paramRaw := c.Params(key, defaultValue...)
 	param, err := url.PathUnescape(paramRaw)
 	if err != nil {
@@ -120,7 +120,7 @@ func FiberParam(c fiber.Ctx, key string, defaultValue ...string) string {
 	}
 }
 
-func FiberPath(c fiber.Ctx) string {
+func FiberPath(c *fiber.Ctx) string {
 	pathRaw := c.Path()
 	pathDec, err := url.PathUnescape(pathRaw)
 	if err != nil {

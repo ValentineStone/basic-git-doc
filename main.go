@@ -17,8 +17,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/goccy/go-yaml"
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	fiber_html "github.com/gofiber/template/html/v2"
 	"golang.org/x/net/html"
 
@@ -29,7 +29,7 @@ import (
 var viewsFS embed.FS
 
 //go:embed public-embeded/*
-var publicFS embed.FS
+var embededFS embed.FS
 
 type Link struct {
 	Text string
@@ -109,7 +109,7 @@ func makeProjects(reposPath string) error {
 		}
 
 		readmeFile := path.Join(reposPath, projectEntry.Name(), "README.md")
-		projectHref := path.Join("/", projectEntry.Name(), "README.md")
+		projectHref := path.Join("/", projectEntry.Name())
 
 		projects = append(projects, ProjectTOC{
 			Name:  projectEntry.Name(),
@@ -221,7 +221,7 @@ func loadGlobalAppConfig(file string) error {
 	return nil
 }
 
-func RenderPage(c fiber.Ctx, markdownRaw string) error {
+func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 	var err error
 	var markdownHTML string
 	var title string = "Untitled"
@@ -238,7 +238,7 @@ func RenderPage(c fiber.Ctx, markdownRaw string) error {
 	}
 
 	if err != nil {
-		return c.Redirect().To("/error?message=" + err.Error())
+		return c.Redirect("/error?message=" + err.Error())
 	}
 	markdownNode, err := html.Parse(strings.NewReader(markdownHTML))
 
@@ -273,8 +273,8 @@ func RenderPage(c fiber.Ctx, markdownRaw string) error {
 	})
 }
 
-func RedirectToProject(c fiber.Ctx, project string) error {
-	return c.Redirect().To(path.Join("/", project, "README.md"))
+func RedirectToProject(c *fiber.Ctx, project string) error {
+	return c.Redirect(path.Join("/", project))
 }
 
 var versionFlag = flag.Bool("version", false, "print version")
@@ -316,14 +316,17 @@ func main() {
 		},
 	)
 
-	app := fiber.New(fiber.Config{Views: engine})
+	app := fiber.New(fiber.Config{
+		Views:                 engine,
+		DisableStartupMessage: true,
+	})
 
-	app.Get("/error", func(c fiber.Ctx) error {
+	app.Get("/error", func(c *fiber.Ctx) error {
 		message := c.Query("message", "unknown error")
 		return RenderPage(c, "# Error\n> "+message)
 	})
 
-	app.Get("/git/checkout/:project/:commit", func(c fiber.Ctx) error {
+	app.Get("/git/checkout/:project/:commit", func(c *fiber.Ctx) error {
 		project := FiberParam(c, "project")
 		commit := FiberParam(c, "commit")
 		var cmd *exec.Cmd
@@ -341,14 +344,14 @@ func main() {
 		return RedirectToProject(c, project)
 	})
 
-	app.Get("/git/submodule/update", func(c fiber.Ctx) error {
+	app.Get("/git/submodule/update", func(c *fiber.Ctx) error {
 		cmd := exec.Command("git", "submodule", "update", "--recursive", "--remote")
 		cmd.CombinedOutput()
 		makeProjects(GlobalAppConfig.ReposDir)
-		return c.Redirect().To("/")
+		return c.Redirect("/")
 	})
 
-	app.Get("/git/pull/:project", func(c fiber.Ctx) error {
+	app.Get("/git/pull/:project", func(c *fiber.Ctx) error {
 		project := FiberParam(c, "project")
 		cmd := exec.Command("git", "pull")
 		cmd.Dir = path.Join(GlobalAppConfig.ReposDir, project)
@@ -357,7 +360,7 @@ func main() {
 		return RedirectToProject(c, project)
 	})
 
-	app.Get("/", func(c fiber.Ctx) error {
+	app.Get("/", func(c *fiber.Ctx) error {
 		if exists, _ := FileExists(GlobalAppConfig.Readme); exists {
 			markdownRaw, err := FileReadString(GlobalAppConfig.Readme)
 			if err != nil {
@@ -370,42 +373,60 @@ func main() {
 		}
 	})
 
-	app.Get("/*.md", func(c fiber.Ctx) error {
-		ok, err := LicenseCheck()
-		if !ok {
-			return c.Redirect().To("/error?message=" + err.Error())
-		}
-		return RenderPage(c, "")
+	/*
+		app.Get("/*.md", func(c *fiber.Ctx) error {
+			ok, err := LicenseCheck()
+			if !ok {
+				return c.Redirect("/error?message=" + err.Error())
+			}
+			return RenderPage(c, "")
+		})
+
+		app.Static("/", GlobalAppConfig.ReposDir, fiber.Static{
+			Browse: true,
+		})
+	*/
+
+	app.Static("/public", "public", fiber.Static{
+		Browse: true,
 	})
 
-	app.Get("/public*", static.New("./public"))
-
-	app.Get("/public*", static.New("./public-embeded", static.Config{
-		FS: publicFS,
+	app.Use("/public", filesystem.New(filesystem.Config{
+		Root:       http.FS(embededFS),
+		PathPrefix: "public-embeded",
+		Browse:     true,
 	}))
 
-	app.Get("/*", static.New(GlobalAppConfig.ReposDir, static.Config{
-		Browse: true,
-	}))
+	app.Get("/:project/*", func(c *fiber.Ctx) error {
+		project := FiberParam(c, "project")
+		subpath := FiberParam(c, "*")
 
-	app.Get("/:project/README.md", func(c fiber.Ctx) error {
+		if subpath == "" {
+			return c.Redirect(path.Join(project, "README.md"))
+		}
+
+		if strings.HasSuffix(strings.ToLower(subpath), ".md") {
+			return RenderPage(c, "")
+		}
+
+		filepath := path.Join(GlobalAppConfig.ReposDir, project, subpath)
+		if ok, _ := FileExists(filepath); !ok {
+			return c.Next()
+		}
+
+		return c.SendFile(filepath)
+	})
+
+	app.Get("/:project/README.md", func(c *fiber.Ctx) error {
 		ok, err := LicenseCheck()
 		if !ok {
-			return c.Redirect().To("/error?message=" + err.Error())
+			return c.Redirect("/error?message=" + err.Error())
 		}
 		project := FiberParam(c, "project")
 		return RenderPage(c, "# "+project+"\n> README.md does not exist for this project!")
 	})
 
-	app.Get("/__favicon", func(c fiber.Ctx) error {
-		return c.SendFile(GlobalAppConfig.Favicon)
-	})
-
-	app.Get("/__logo", func(c fiber.Ctx) error {
-		return c.SendFile(GlobalAppConfig.Logo)
-	})
-
-	app.Use(func(c fiber.Ctx) error {
+	app.Use(func(c *fiber.Ctx) error {
 		return RenderPage(c, "# 404 Not Found\n`"+FiberPath(c)+"`")
 	})
 
@@ -427,5 +448,5 @@ func main() {
 		return nil
 	})
 
-	log.Fatal(app.Listen(GlobalAppConfig.HostPort, fiber.ListenConfig{DisableStartupMessage: true}))
+	log.Fatal(app.Listen(GlobalAppConfig.HostPort))
 }

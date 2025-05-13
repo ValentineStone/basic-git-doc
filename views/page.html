@@ -9,15 +9,18 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" type="text/css" href="/public/markdown-style.css" />
+		<link rel="stylesheet" type="text/css" href="/public/default-style.css" />
 		<link rel="stylesheet" type="text/css" href="/public/style.css" />
-		<link rel="icon" href="/__favicon">
+		<script src="/public/default-script.js" defer></script>
+		<script src="/public/script.js" defer></script>
+		<link rel="icon" href="/{{$globalAppConfig.Favicon}}">
 		<title>{{.title}}</title>
 
 	</head>
 	<body class="markdown-body">
 		<nav class="toc">
 			<a href="/" class="logo-link">
-				<img src="/__logo" class="toc-logo">
+				<img src="/{{$globalAppConfig.Logo}}" class="toc-logo">
 			</a>
       {{if $globalAppConfig.GlobalTitle}}
         <h1 class="global-title">{{$globalAppConfig.GlobalTitle}}</h1>

@@ -9,17 +9,21 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/goccy/go-yaml"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	fiber_html "github.com/gofiber/template/html/v2"
+	"github.com/gosimple/slug"
 	"golang.org/x/net/html"
 
 	"runtime/debug"
@@ -51,6 +55,7 @@ type Config struct {
 	Readme      string `yaml:"readme"`
 	ReposDir    string `yaml:"reposDir"`
 	HostPort    string `yaml:"hostPort"`
+	Uploads     bool   `yaml:"uploads"`
 }
 
 var GlobalAppVersion = "0.0.0-unknown"
@@ -62,6 +67,7 @@ var GlobalAppConfig = Config{
 	Readme:      "public/README.md",
 	ReposDir:    "repos",
 	HostPort:    "127.0.0.1:3000",
+	Uploads:     false,
 }
 
 var projects []ProjectTOC
@@ -238,13 +244,19 @@ func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 	}
 
 	if err != nil {
-		return c.Redirect("/error?message=" + err.Error())
+		return RenderError(c, err.Error())
 	}
 	markdownNode, err := html.Parse(strings.NewReader(markdownHTML))
 
 	var headings = make([]Link, 0)
 	if err == nil {
 		markdownDoc := goquery.NewDocumentFromNode(markdownNode)
+
+		allHeadingsSelection := markdownDoc.Find("h1, h2, h3, h4, h5, h6")
+		allHeadingsSelection.Each(func(i int, s *goquery.Selection) {
+			s.SetAttr("id", slug.Make(s.Text()))
+		})
+
 		headingsSelection := markdownDoc.Find("h1")
 		if headingsSelection.Length() <= 1 {
 			headingsSelection = markdownDoc.Find("h2")
@@ -259,7 +271,14 @@ func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 		if err == nil {
 			title = markdownTitle
 		}
+
+		markdownHTMLNew, err := goquery.OuterHtml(markdownDoc.Selection)
+		if err == nil {
+			markdownHTML = markdownHTMLNew
+		}
 	}
+
+	downloadLink := c.Path() + "?download=" + url.QueryEscape(title) + ".md"
 
 	return c.Render("views/page", fiber.Map{
 		"title":           title,
@@ -268,13 +287,44 @@ func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 		"headings":        headings,
 		"projects":        projects,
 		"currentHref":     FiberPath(c),
+		"currentHrefRaw":  c.Path(),
 		"currentProject":  strings.Split(FiberPath(c)[1:], "/")[0],
 		"globalAppConfig": GlobalAppConfig,
+		"downloadLink":    downloadLink,
 	})
 }
 
 func RedirectToProject(c *fiber.Ctx, project string) error {
 	return c.Redirect(path.Join("/", project))
+}
+
+func RenderError(c *fiber.Ctx, message string, code ...int) error {
+	if len(code) > 0 {
+		errorText := http.StatusText(code[0])
+		return RenderPage(c, "# "+strconv.Itoa(code[0])+" "+errorText+"\n> "+message)
+	} else {
+		return RenderPage(c, "# Error\n> "+message)
+	}
+}
+
+func DownloadMarkdownFile(c *fiber.Ctx, project string, subpath string, downloadName string) error {
+	filepath := path.Join(GlobalAppConfig.ReposDir, project, subpath)
+	downloadFileName := project + "_" + strings.ReplaceAll(downloadName, " ", "_")
+
+	yamlheaderbytes := []byte(
+		"---\n" +
+			"project: " + strconv.Quote(project) + "\n" +
+			"file:    " + strconv.Quote(subpath) + "\n" +
+			"---\n\n",
+	)
+
+	filebytes, err := FileReadBytes(filepath)
+	if err != nil {
+		return RenderError(c, err.Error())
+	}
+
+	c.Attachment(downloadFileName)
+	return c.Send(append(yamlheaderbytes, filebytes...))
 }
 
 var versionFlag = flag.Bool("version", false, "print version")
@@ -319,6 +369,16 @@ func main() {
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
+		BodyLimit:             10 * 1024 * 1024, // 10 MB max upload size
+		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				code = e.Code
+			}
+			ctx.Status(code)
+			return RenderError(ctx, err.Error(), code)
+		},
 	})
 
 	app.Get("/error", func(c *fiber.Ctx) error {
@@ -373,20 +433,6 @@ func main() {
 		}
 	})
 
-	/*
-		app.Get("/*.md", func(c *fiber.Ctx) error {
-			ok, err := LicenseCheck()
-			if !ok {
-				return c.Redirect("/error?message=" + err.Error())
-			}
-			return RenderPage(c, "")
-		})
-
-		app.Static("/", GlobalAppConfig.ReposDir, fiber.Static{
-			Browse: true,
-		})
-	*/
-
 	app.Static("/public", "public", fiber.Static{
 		Browse: true,
 	})
@@ -398,15 +444,15 @@ func main() {
 	}))
 
 	app.Get("/:project/*", func(c *fiber.Ctx) error {
-		project := FiberParam(c, "project")
-		subpath := FiberParam(c, "*")
-
-		if subpath == "" {
-			return c.Redirect(path.Join(project, "README.md"))
+		ok, err := LicenseCheck()
+		if !ok {
+			return RenderError(c, err.Error())
 		}
 
-		if strings.HasSuffix(strings.ToLower(subpath), ".md") {
-			return RenderPage(c, "")
+		project := FiberParam(c, "project")
+		subpath := FiberParam(c, "*")
+		if subpath == "" {
+			return c.Redirect(path.Join(project, "README.md"))
 		}
 
 		filepath := path.Join(GlobalAppConfig.ReposDir, project, subpath)
@@ -414,13 +460,46 @@ func main() {
 			return c.Next()
 		}
 
+		if strings.HasSuffix(strings.ToLower(subpath), ".md") {
+			if c.Query("download") != "" {
+				return DownloadMarkdownFile(c, project, subpath, c.Query("download"))
+			}
+
+			return RenderPage(c, "")
+		}
+
 		return c.SendFile(filepath)
+	})
+
+	app.Post("/api/upload", func(c *fiber.Ctx) error {
+		if !GlobalAppConfig.Uploads {
+			return errors.New("upload feature not enabled")
+		}
+
+		file, err := c.FormFile("file")
+		if err != nil {
+			return RenderError(c, err.Error())
+		}
+		timestamp := time.Now().UTC().Format("2006-01-02-15-04-05")
+
+		destination := fmt.Sprintf("./upload/%s %s", timestamp, file.Filename)
+		err = c.SaveFile(file, destination)
+		if err != nil {
+			return RenderError(c, err.Error())
+		}
+
+		if redirect := c.FormValue("redirect"); redirect == "" {
+			return RenderPage(c, "# Success\nFile uploaded")
+		} else {
+			return RenderPage(c, "# Success\nFile uploaded, [go back]("+redirect+")")
+			//return c.Redirect(redirect)
+		}
 	})
 
 	app.Get("/:project/README.md", func(c *fiber.Ctx) error {
 		ok, err := LicenseCheck()
 		if !ok {
-			return c.Redirect("/error?message=" + err.Error())
+			return RenderError(c, err.Error())
 		}
 		project := FiberParam(c, "project")
 		return RenderPage(c, "# "+project+"\n> README.md does not exist for this project!")

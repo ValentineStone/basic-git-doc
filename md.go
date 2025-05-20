@@ -8,7 +8,6 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 )
 
@@ -16,7 +15,7 @@ func markdownParseBytes(source []byte) bytes.Buffer {
 	md := goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
+		//parser.WithAutoHeadingID(),
 		),
 		goldmark.WithRendererOptions(
 			html.WithHardWraps(),

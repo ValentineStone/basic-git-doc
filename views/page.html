@@ -1,7 +1,9 @@
 {{$currentHref := .currentHref}}
+{{$currentHrefRaw := .currentHrefRaw}}
 {{$currentProject := .currentProject}}
 {{$globalAppConfig := .globalAppConfig}}
 {{$headings := .headings}}
+{{$downloadLink := .downloadLink}}
 
 <!doctype html>
 <html>
@@ -97,8 +99,24 @@
 			<div class="version-info">{{.version}}</div>
 		</nav>
 		<main>
-			<div id="top" style="margin:0"></div>
+      {{if $downloadLink}}
+        <div class="download-bar">
+          <a href="{{$downloadLink}}" title="Download">Download 📥<!--💾--></a>
+          <div class="spacer"></div>
+          {{if $globalAppConfig.Uploads}}
+            <form class="upload-bar" method="post" action="/api/upload" enctype="multipart/form-data">
+              <input type="hidden" name="redirect" value="{{$currentHrefRaw}}" />
+              <input type="file" id="file" name="file" accept=".md" required/>
+              <label for="file" class="link">Select for upload 📤</label>
+              <input type="submit" value="Upload 📤" class="link"/>
+            </form>
+          {{end}}
+        </div>
+      {{end}}
+			<!--
+      <div id="top" style="margin:0"></div>
 			<a href="#top" class="top-button"></a>
+      -->
 			<div>{{unescape .html}}</div>
 		</main>
 	</body>

@@ -93,6 +93,53 @@ body > main > *:not(:first-child) {
   content: '↑ top';
 }
 
+.download-bar {
+  display: flex;
+  text-align: right;
+  border-bottom: 1px solid #8883;
+}
+
+.download-bar > .spacer {
+  flex-grow: 1;
+}
+
+.upload-bar input[type=submit] {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.upload-bar input[type=file] {
+  min-width: 10px;
+}
+
+.upload-bar input[type=file]::file-selector-button {
+  display: none;
+}
+
+.upload-bar input[type=file]:invalid {
+  display: none;
+}
+
+.upload-bar input[type=file]:invalid + label + input[type=submit] {
+  display: none;
+}
+
+.upload-bar input[type=file]:valid + label {
+  display: none;
+}
+
+.link {
+  color: #0366d6;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
 .version-tags {
   display: flex;
   flex-wrap: wrap;

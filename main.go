@@ -231,6 +231,7 @@ func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 	var err error
 	var markdownHTML string
 	var title string = "Untitled"
+	var downloadLink string = ""
 	if markdownRaw == "" {
 		filePath := path.Join(GlobalAppConfig.ReposDir, FiberPath(c))
 		fileName := path.Base(filePath)
@@ -278,7 +279,9 @@ func RenderPage(c *fiber.Ctx, markdownRaw string) error {
 		}
 	}
 
-	downloadLink := c.Path() + "?download=" + url.QueryEscape(title) + ".md"
+	if markdownRaw == "" {
+		downloadLink = c.Path() + "?download=" + url.QueryEscape(title) + ".md"
+	}
 
 	return c.Render("views/page", fiber.Map{
 		"title":           title,
@@ -464,7 +467,6 @@ func main() {
 			if c.Query("download") != "" {
 				return DownloadMarkdownFile(c, project, subpath, c.Query("download"))
 			}
-
 			return RenderPage(c, "")
 		}
 
